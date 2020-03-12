@@ -7,6 +7,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 import numpy as np
 import os
 import os.path
+import sys
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -16,24 +17,73 @@ IMG_EXTENSIONS = [
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-def find_classes(data_dict):
-    classes = [c for c in sorted(data_dict) if c[0]!='_']
-    classes.sort()
-    class_to_idx = {classes[i]: i for i in range(len(classes))}
-    return classes, class_to_idx
+# def find_classes(data_dict):
+#     classes = [c for c in sorted(data_dict) if c[0]!='_']
+#     classes.sort()
+#     class_to_idx = {classes[i]: i for i in range(len(classes))}
+#     return classes, class_to_idx
 
-def make_dataset(data_dict, class_to_idx):
+def find_classes(dir):
+        """
+        Finds the class folders in a dataset.
+
+        Args:
+            dir (string): Root directory path.
+
+        Returns:
+            tuple: (classes, class_to_idx) where classes are relative to (dir), and class_to_idx is a dictionary.
+
+        Ensures:
+            No class is a subdirectory of another.
+        """
+        
+        # Faster and available in Python 3.5 and above
+        classes = [d.name for d in os.scandir(dir) if (d.is_dir() and d.name !='background')]
+        
+        classes.sort()
+        classes.append('background')            #add background class
+        class_to_idx = {classes[i]: i for i in range(len(classes)-1)}
+        class_to_idx['background'] = -1         #the label of background class is set to -1
+        return classes, class_to_idx
+
+# def make_dataset(dir, class_to_idx):
+#     images = []
+#     idx_to_class = {}
+#     intervals = []
+#     i0,i1 = 0,0
+    
+#     for catg in class_to_idx:#classes        #####################
+#         for fdir in data_dict[catg]:
+#             if is_image_file(fdir):
+#                 idx_to_class[i1] = class_to_idx[catg]
+#                 images.append((fdir, class_to_idx[catg]))
+#                 i1 += 1
+#         intervals.append((i0,i1))
+#         i0 = i1
+                    
+#     if i0!=i1:
+#         intervals.append((i0,i1))
+
+#     return images, intervals, idx_to_class
+def make_dataset(dir, class_to_idx):
     images = []
     idx_to_class = {}
     intervals = []
     i0,i1 = 0,0
+    dir = os.path.expanduser(dir)
     
-    for catg in sorted(class_to_idx):#classes
-        for fdir in data_dict[catg]:
-            if is_image_file(fdir):
-                idx_to_class[i1] = class_to_idx[catg]
-                images.append((fdir, class_to_idx[catg]))
-                i1 += 1
+    for catg in class_to_idx.keys():#classes        
+        d = os.path.join(dir,catg)
+        if not os.path.isdir(d):
+            continue
+        # for fdir in data_dict[catg]:
+        for root, _, fnames in sorted(os.walk(d, followlinks=True)):
+             for fname in sorted(fnames):
+                path = os.path.join(root, fname)
+                if is_image_file(path):
+                    idx_to_class[i1] = class_to_idx[catg]
+                    images.append((path, class_to_idx[catg]))
+                    i1 += 1
         intervals.append((i0,i1))
         i0 = i1
                     
@@ -72,11 +122,11 @@ def folderReader(path):
 
 class ImageReader(data.Dataset):
 
-    def __init__(self, data_dict, transform=None, target_transform=None,
+    def __init__(self, dir, transform=None, target_transform=None,
                  loader=default_loader):
         
-        classes, class_to_idx = find_classes(data_dict)
-        imgs, intervals, idx_to_class = make_dataset(data_dict, class_to_idx)
+        classes, class_to_idx = find_classes(dir)
+        imgs, intervals, idx_to_class = make_dataset(dir, class_to_idx)
         
         if len(imgs) == 0:
             raise(RuntimeError("Found 0 images!"))

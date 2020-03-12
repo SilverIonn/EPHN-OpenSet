@@ -20,7 +20,7 @@ class learn():
         self.gpuid = [0]
             
         self.imgsize = 256
-        self.batch_size = 128
+        # self.batch_size = 128
         self.num_workers = 32
         
         self.decay_time = [False,False]
@@ -35,7 +35,9 @@ class learn():
         self.RGBstdv = RGBstdv[Data]
         
         self.criterion = EPHNLoss() 
-        self.Graph_size = 16
+        self.n_class = 8
+        self.n_img = 16
+        self.n_noise = 8
         
         if not self.setsys(): print('system error'); return
         
@@ -170,9 +172,9 @@ class learn():
     def tra(self):
         self.model.train(True)  # Set model to training mode
         if self.Data in ['CUB','CAR']:
-            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler(self.intervals, GSize=self.Graph_size), num_workers=self.num_workers)
-        else: 
-            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, GSize=self.Graph_size), num_workers=self.num_workers)
+            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
+        # else: 
+        #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
         
         L_data, N_data = 0.0, 0
         # iterate batch
