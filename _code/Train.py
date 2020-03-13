@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch
 
-from .Sampler import BalanceSampler, BalanceSampler2
+from .Sampler import BalanceSampler, BalanceSampler2, BalanceSampler3
 from .Reader import ImageReader
 from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
@@ -172,7 +172,7 @@ class learn():
     def tra(self):
         self.model.train(True)  # Set model to training mode
         if self.Data in ['CUB','CAR']:
-            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
+            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler3(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
         # else: 
         #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
         
