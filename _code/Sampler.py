@@ -68,7 +68,7 @@ class BalanceSampler2(Sampler):
 
     
 class BalanceSampler3(Sampler):
-    def __init__(self, intervals, n_class= 8, n_img=16, n_noise=8):    
+    def __init__(self, intervals, n_class= 8, n_img=16, n_noise=32):    
         
         class_len = len(intervals[:-1])    #exclude background
         list_sp = []

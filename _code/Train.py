@@ -1,6 +1,6 @@
 import os, time
 
-from torchvision import models, transforms, datasets
+from torchvision import transforms, datasets
 from torch.utils.data.sampler import SequentialSampler
 import torch.optim as optim
 import torch.nn as nn
@@ -11,11 +11,12 @@ from .Reader import ImageReader
 from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
 from .color_lib import RGBmean, RGBstdv
+from .Resnet import resnet18, resnet50
 
 PHASE = ['tra','val']
 
 class learn():
-    def __init__(self, dst, Data, data_dict):
+    def __init__(self, dst, Data, data_dict, data_dir):
         self.dst = dst
         self.gpuid = [0]
             
@@ -29,15 +30,16 @@ class learn():
         self.avg = 8
         
         self.Data = Data
+        self.data_dir = data_dir
         self.data_dict = data_dict
         
         self.RGBmean = RGBmean[Data]
         self.RGBstdv = RGBstdv[Data]
         
         self.criterion = EPHNLoss() 
-        self.n_class = 8
-        self.n_img = 16
-        self.n_noise = 8
+        self.n_class = 8         ##n_class different classes
+        self.n_img = 16          ##each class should contain n_img different images
+        self.n_noise = 32        ##n_noise background images
         
         if not self.setsys(): print('system error'); return
         
@@ -72,7 +74,7 @@ class learn():
                                                   transforms.ToTensor(),
                                                   transforms.Normalize(self.RGBmean, self.RGBstdv)])
 
-        self.dsets = ImageReader(self.data_dict['tra'], self.tra_transforms) 
+        self.dsets = ImageReader(self.data_dict['tra'], self.data_dir, self.tra_transforms) 
         self.intervals = self.dsets.intervals
         self.classSize = len(self.intervals)
         print('number of classes: {}'.format(self.classSize))
@@ -84,13 +86,13 @@ class learn():
     ##################################################
     def setModel(self, model_name):
         if model_name == 'R18':
-            self.model = models.resnet18(pretrained=True)
+            self.model = resnet18(pretrained=True)
             print('Setting model: resnet18')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
             self.model.avgpool = nn.AvgPool2d(self.avg)
         elif model_name == 'R50':
-            self.model = models.resnet50(pretrained=True)
+            self.model = resnet50(pretrained=True)
             print('Setting model: resnet50')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
@@ -163,7 +165,7 @@ class learn():
             self.record.append([epoch, tra_loss]+acc)
 
         # save model
-        torch.save(self.model.cpu(), self.dst + 'model.pth')
+        torch.save(self.model.cpu().state_dict(), self.dst + 'model_params.pth')
         torch.save(torch.Tensor(self.record), self.dst + 'record.pth')
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed//60, time_elapsed%60))
@@ -182,8 +184,8 @@ class learn():
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 inputs_bt, labels_bt = data # <FloatTensor> <LongTensor>
-                fvec = self.model(inputs_bt.cuda())
-                loss = self.criterion(fvec, labels_bt.cuda())
+                fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
+                loss = self.criterion(fvec, labels_bt.cuda())+fmap4[-32:].mean()
 
                 loss.backward()
                 self.optimizer.step()  
@@ -195,8 +197,8 @@ class learn():
         
     def recall_val2val(self, epoch):
         self.model.train(False)  # Set model to testing mode
-        dsets_tra = ImageReader(self.data_dict['tra'], self.val_transforms) 
-        dsets_val = ImageReader(self.data_dict['val'], self.val_transforms) 
+        dsets_tra = ImageReader(self.data_dict['tra'], transform = self.val_transforms) 
+        dsets_val = ImageReader(self.data_dict['val'], transform = self.val_transforms) 
         Fvec_tra = eva(dsets_tra, self.model)
         Fvec_val = eva(dsets_val, self.model)
         
@@ -214,8 +216,8 @@ class learn():
     
     def recall_val2tra(self, epoch):
         self.model.train(False)  # Set model to testing mode
-        dsets_tra = ImageReader(self.data_dict['tra'], self.val_transforms) 
-        dsets_val = ImageReader(self.data_dict['val'], self.val_transforms) 
+        dsets_tra = ImageReader(self.data_dict['tra'], transform =self.val_transforms) 
+        dsets_val = ImageReader(self.data_dict['val'], transform =self.val_transforms) 
         Fvec_tra = eva(dsets_tra, self.model)
         Fvec_val = eva(dsets_val, self.model)
 
@@ -232,8 +234,8 @@ class learn():
     
     def recall_val2gal(self, epoch):
         self.model.train(False)  # Set model to testing mode
-        dsets_gal = ImageReader(self.data_dict['gal'], self.val_transforms) 
-        dsets_val = ImageReader(self.data_dict['val'], self.val_transforms) 
+        dsets_gal = ImageReader(self.data_dict['gal'], transform =self.val_transforms) 
+        dsets_val = ImageReader(self.data_dict['val'], transform =self.val_transforms) 
         Fvec_gal = eva(dsets_gal, self.model)
         Fvec_val = eva(dsets_val, self.model)
         

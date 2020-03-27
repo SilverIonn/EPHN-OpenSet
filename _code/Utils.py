@@ -34,7 +34,7 @@ def eva(dsets, model):
     model.eval()
     for data in dataLoader:
         inputs_bt, labels_bt = data # <FloatTensor> <LongTensor>
-        fvec = model(inputs_bt.cuda())
+        fvec,_,_,_,_ = model(inputs_bt.cuda())
         fvec = norml2(fvec)
         fvec = fvec.cpu()
         Fvecs.append(fvec)
