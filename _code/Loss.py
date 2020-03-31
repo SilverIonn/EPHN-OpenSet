@@ -74,7 +74,7 @@ class EPHNLoss(Module):
         Prob = -F.log_softmax(T/self.sigma,dim=1)[:,0]
         loss = Prob[Mask_not_drop].mean()
 
-        print('loss:{:.3f} rt:{:.3f}'.format(loss.item()/N, Mask_not_drop.float().mean().item()), end='\r')
+        print('loss:{:.3f} rt:{:.3f}'.format(loss.item(), Mask_not_drop.float().mean().item()), end='\r')
 
         return loss
     

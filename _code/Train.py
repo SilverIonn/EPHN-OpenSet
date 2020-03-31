@@ -109,7 +109,7 @@ class learn():
         print('Training on Single-GPU')
         print('LR is set to {}'.format(self.init_lr))
         self.model = self.model.cuda()
-        self.optimizer = optim.RMSprop(self.model.parameters(), lr=self.init_lr, alpha=0.9)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=self.init_lr)
         return
     
     def lr_scheduler(self, epoch):
@@ -133,17 +133,17 @@ class learn():
         since = time.time()
         self.record = []
         
-        # calculate the retrieval accuracy
-        if self.Data in ['SOP','CUB','CAR']:
-            acc = self.recall_val2val(-1)
-        elif self.Data=='ICR':
-            acc = self.recall_val2gal(-1)
-        elif self.Data=='HOTEL':
-            acc = self.recall_val2tra(-1)
-        else:
-            acc = self.recall_val2tra(-1)
+#         # calculate the retrieval accuracy
+#         if self.Data in ['SOP','CUB','CAR']:
+#             acc = self.recall_val2val(-1)
+#         elif self.Data=='ICR':
+#             acc = self.recall_val2gal(-1)
+#         elif self.Data=='HOTEL':
+#             acc = self.recall_val2tra(-1)
+#         else:
+#             acc = self.recall_val2tra(-1)
         
-        self.record.append([-1, 0]+acc)
+#         self.record.append([-1, 0]+acc)
     
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
@@ -154,16 +154,17 @@ class learn():
             tra_loss = self.tra()
             
             # calculate the retrieval accuracy
-            if self.Data in ['SOP','CUB','CAR']:
-                acc = self.recall_val2val(epoch)
-            elif self.Data=='ICR':
-                acc = self.recall_val2gal(epoch)
-            elif self.Data=='HOTEL':
-                acc = self.recall_val2tra(epoch)
-            else:
-                acc = self.recall_val2tra(epoch)
-                
-            self.record.append([epoch, tra_loss]+acc)
+            if epoch>0 and epoch%4==0:
+                if self.Data in ['SOP','CUB','CAR']:
+                    acc = self.recall_val2val(epoch)
+                elif self.Data=='ICR':
+                    acc = self.recall_val2gal(epoch)
+                elif self.Data=='HOTEL':
+                    acc = self.recall_val2tra(epoch)
+                else:
+                    acc = self.recall_val2tra(epoch)
+
+                self.record.append([epoch, tra_loss]+acc)
 
         # save model
         torch.save(self.model.cpu().state_dict(), self.dst + 'model_params.pth')
@@ -185,8 +186,12 @@ class learn():
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 inputs_bt, labels_bt = data # <FloatTensor> <LongTensor>
+                if len(labels_bt)<self.n_class*self.n_img+self.n_noise:
+                    break
                 fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
-                loss = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())+fmap4[-self.n_noise:,:,:].mean()
+                loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
+                loss_norm = fmap4[-self.n_noise:,:,:].mean()
+                loss = loss_ephn+loss_norm
 
                 loss.backward()
                 self.optimizer.step()  
