@@ -10,12 +10,13 @@ parser.add_argument('--lr', type=float, help='learning rate')
 parser.add_argument('--method', type=str, help='method')
 parser.add_argument('--g', type=int, help='gsize')
 parser.add_argument('--ep', type=int, help='epochs')
+parser.add_argument('--w', type=float, help='weight of loss_norm')
 args = parser.parse_args()
 
 
 data_dir = '/pless_nfs/home/datasets/Background_images/03branch'          
 data_dict = torch.load('/pless_nfs/home/datasets/CUB/data_dict_emb.pth')
-dst = '_result/{}/{}_{}/G{}/{}/'.format(args.method, args.Data, args.model, args.g, 0)
+dst = '_result/{}/{}_{}/G{}/{}/'.format(args.method, args.Data, args.model, args.g, args.w)
 print(dst)  
     
 x = learn(dst, args.Data, data_dict, data_dir)
@@ -23,6 +24,7 @@ x.n_class = 16          #number of classes per batch
 x.n_img = args.g        #size of each class in a batch
 x.n_noise = 32          #number of background images per batch
 
+x.w = args.w
 x.init_lr = args.lr
 if args.method=='EPSHN':
     x.criterion.semi = True

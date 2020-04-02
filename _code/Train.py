@@ -41,6 +41,7 @@ class learn():
         self.n_img = 16          ##each class should contain n_img different images
         self.n_noise = 32        ##n_noise background images
         
+        self.w = 1               ##weight of loss_norm 
         if not self.setsys(): print('system error'); return
         
     def run(self, emb_dim, model_name, num_epochs=20):
@@ -154,7 +155,7 @@ class learn():
             tra_loss = self.tra()
             
             # calculate the retrieval accuracy
-            if epoch>0 and epoch%4==0:
+            if epoch>0 and (epoch+1)%5==0:
                 if self.Data in ['SOP','CUB','CAR']:
                     acc = self.recall_val2val(epoch)
                 elif self.Data=='ICR':
@@ -191,8 +192,8 @@ class learn():
                 fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
                 loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
                 loss_norm = fmap4[-self.n_noise:,:,:].mean()
-                loss = loss_ephn+loss_norm
-
+                loss = loss_ephn+self.w*loss_norm
+                #print(loss_ephn.item(),loss_norm.item())
                 loss.backward()
                 self.optimizer.step()  
             
