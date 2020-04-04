@@ -14,7 +14,7 @@ parser.add_argument('--w', type=float, help='weight of loss_norm')
 args = parser.parse_args()
 
 
-data_dir = '/pless_nfs/home/datasets/Background_images/03branch'          
+data_dir = '/pless_nfs/home/jiayin19/datasets/Background_dst/Background'          
 data_dict = torch.load('/pless_nfs/home/datasets/CUB/data_dict_emb.pth')
 dst = '_result/{}/{}_{}/G{}/{}/'.format(args.method, args.Data, args.model, args.g, args.w)
 print(dst)  

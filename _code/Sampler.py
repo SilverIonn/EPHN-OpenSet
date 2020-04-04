@@ -107,7 +107,9 @@ class BalanceSampler3(Sampler):
         temp_idx = origin_idx.reshape(-1,origin_batchsize)   
         background_ext = np.random.choice(interval_list[-1], temp_idx.shape[0]*n_noise).reshape(temp_idx.shape[0],n_noise)
         self.idx = np.concatenate((temp_idx, background_ext), axis=1).reshape((1,-1)).flatten().tolist()
-
+        #print(len(self.idx))
+        #print(self.idx[:160])
+        #print(self.idx[160:320])
 
 
     def __iter__(self):

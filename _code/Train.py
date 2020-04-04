@@ -132,8 +132,9 @@ class learn():
     def opt(self):
         # recording time and epoch info
         since = time.time()
-        self.record = []
-        
+        self.record_norm = []
+        self.record_acc = []
+
 #         # calculate the retrieval accuracy
 #         if self.Data in ['SOP','CUB','CAR']:
 #             acc = self.recall_val2val(-1)
@@ -149,10 +150,10 @@ class learn():
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
             print('Epoch {}/{} \n '.format(epoch+1, self.num_epochs) + '-' * 40)
-            self.lr_scheduler(epoch)
+            self.lr_scheduler(epoch+1)
             
             # train 
-            tra_loss = self.tra()
+            tra_loss, dst_norm, bkgd_norm = self.tra()
             
             # calculate the retrieval accuracy
             if epoch>0 and (epoch+1)%5==0:
@@ -164,12 +165,14 @@ class learn():
                     acc = self.recall_val2tra(epoch)
                 else:
                     acc = self.recall_val2tra(epoch)
+                self.record_acc.append([epoch+1]+acc)
 
-                self.record.append([epoch, tra_loss]+acc)
+            self.record_norm.append([epoch+1, dst_norm, bkgd_norm])
 
         # save model
         torch.save(self.model.cpu().state_dict(), self.dst + 'model_params.pth')
-        torch.save(torch.Tensor(self.record), self.dst + 'record.pth')
+        torch.save(torch.Tensor(self.record_acc), self.dst + 'record_acc.pth')
+        torch.save(torch.Tensor(self.record_norm), self.dst + 'record_norm.pth')
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed//60, time_elapsed%60))
         return
@@ -182,6 +185,7 @@ class learn():
         #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
         
         L_data, N_data = 0.0, 0
+        DN_data, LN_data, NN_data = 0.0, 0.0, 0
         # iterate batch
         for data in dataLoader:
             self.optimizer.zero_grad()
@@ -192,6 +196,7 @@ class learn():
                 fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
                 loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
                 loss_norm = fmap4[-self.n_noise:,:,:].mean()
+                data_norm = fmap4[:-self.n_noise,:,:].mean()
                 loss = loss_ephn+self.w*loss_norm
                 #print(loss_ephn.item(),loss_norm.item())
                 loss.backward()
@@ -199,8 +204,10 @@ class learn():
             
             L_data += loss.item()
             N_data += len(labels_bt)
-
-        return L_data/N_data
+            DN_data += data_norm.item()
+            LN_data += loss_norm.item()
+            NN_data += 1
+        return L_data/N_data, DN_data/NN_data, LN_data/NN_data
         
     def recall_val2val(self, epoch):
         self.model.train(False)  # Set model to testing mode
