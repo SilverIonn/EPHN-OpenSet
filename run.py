@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 data_dir = '/pless_nfs/home/datasets/Background_dst/Background/'          
 data_dict = torch.load('/pless_nfs/home/datasets/CUB/data_dict_emb.pth')
-dst = '_result/{}/{}_{}/G{}/{}/'.format(args.method, args.Data, args.model, args.g, args.w)
+dst = '_result/{}/{}_{}/G{}/{}_12/'.format(args.method, args.Data, args.model, args.g, args.w)
 print(dst)  
     
 x = learn(dst, args.Data, data_dict, data_dir)

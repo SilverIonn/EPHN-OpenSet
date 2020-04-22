@@ -199,11 +199,17 @@ class learn():
                 if len(labels_bt)<self.n_class*self.n_img+self.n_noise:
                     break
                 fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
-                loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
-                loss_norm = fmap4[-self.n_noise:,:,:].mean()
-                data_norm = fmap4[:-self.n_noise,:,:].mean()
-                loss = loss_ephn+self.w*loss_norm
+                if(self.n_noise!=0):    
+                    loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
+                    loss_norm = fmap4[-self.n_noise:,:,:].mean()
+                    data_norm = fmap4[:-self.n_noise,:,:].mean()
+                    loss = loss_ephn+self.w*loss_norm
                 #print(loss_ephn.item(),loss_norm.item())
+                else:
+                    loss_ephn = self.criterion(fvec, labels_bt.cuda())
+                    loss_norm = torch.Tensor([0])
+                    data_norm = fmap4.mean()
+                    loss = loss_ephn
                 loss.backward()
                 self.optimizer.step()  
             
