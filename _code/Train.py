@@ -170,7 +170,7 @@ class learn():
                     acc = self.recall_val2tra(epoch)
                 elif self.Data=='LMK':
 
-                    datasets = ('oxford5k', 'paris6k')
+                    datasets = ('oxford5k', 'paris6k', 'roxford5k', 'rparis6k')
                     results = eval_datasets(self.model, datasets=datasets, ms=True, tta_gem_p=1.0, logger=self.logger)
                     acc = [0,0]
                 else:

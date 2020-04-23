@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 import utils
 from utils import compute_map_and_print, configdataset, ImagesFromList
-# from cirtorch.utils.general import get_data_root
 
 
 
@@ -32,6 +31,7 @@ def extract_vectors(model,
     )
 
     ids, feats = [], []
+    DIVIDABLE_BY = 32
     for i, x in tqdm(enumerate(local_eval_loader),
                      total=len(local_eval_loader),
                      desc=tqdm_desc,
@@ -43,10 +43,10 @@ def extract_vectors(model,
         with torch.no_grad():
             x = x.to('cuda')
             for s in scales:
-                size = int(h * s // model.DIVIDABLE_BY * model.DIVIDABLE_BY), \
-                       int(w * s // model.DIVIDABLE_BY * model.DIVIDABLE_BY)  # round off
+                size = int(h * s // DIVIDABLE_BY * DIVIDABLE_BY), \
+                       int(w * s // DIVIDABLE_BY * DIVIDABLE_BY)  # round off
                 scaled_x = F.interpolate(x, size=size, mode='bilinear', align_corners=True)
-                feat = model.extract_feat(scaled_x)
+                feat = model(scaled_x)[0]
                 if tta_gem_p != 1.0:
                     feat = feat ** tta_gem_p
                 feat = feat.cpu().numpy()
@@ -71,7 +71,7 @@ def eval_datasets(model,
                   ):
     model = model.eval()
 
-    data_root = ''
+    data_root = '/SEAS/home/jiayin19/datasets/Landmark_test/'
     scales = [1 / 2 ** (1 / 2), 1.0, 2 ** (1 / 2)] if ms else [1.0]
     results = dict()
 
