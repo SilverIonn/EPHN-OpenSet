@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES='3' screen  python run.py --Data CUB --model R18 --dim 64 --lr 1e-2 --method EPSHN --g 8 --ep 100 --w 0.1
+CUDA_VISIBLE_DEVICES='3' screen  python run.py --Data CUB --model R18 --dim 64 --lr 1e-2 --method EPSHN --imgsize 128 --c 16 --g 8 --n 128 --ep 100 --w 0.1

@@ -1,6 +1,6 @@
 import os, time
 
-from torchvision import transforms, datasets
+from torchvision import transforms
 from torch.utils.data.sampler import SequentialSampler
 import torch.optim as optim
 import torch.nn as nn
@@ -12,6 +12,8 @@ from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
 from .color_lib import RGBmean, RGBstdv
 from .Resnet import resnet18, resnet50
+from eval_lmk.eval_retrieval import eval_datasets
+from eval_lmk.utils import get_logger
 
 PHASE = ['tra','val']
 
@@ -147,7 +149,9 @@ class learn():
 #             acc = self.recall_val2tra(-1)
         
 #         self.record.append([-1, 0]+acc)
-    
+        if self.Data=='LMK':
+            self.logger = get_logger(log_dir='/SEAS/groups/plessgrp/Landmark_V1/log/')
+
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
             print('Epoch {}/{} \n '.format(epoch+1, self.num_epochs) + '-' * 40)
@@ -164,6 +168,11 @@ class learn():
                     acc = self.recall_val2gal(epoch)
                 elif self.Data=='HOTEL':
                     acc = self.recall_val2tra(epoch)
+                elif self.Data=='LMK':
+
+                    datasets = ('oxford5k', 'paris6k')
+                    results = eval_datasets(self.model, datasets=datasets, ms=True, tta_gem_p=1.0, logger=self.logger)
+                    acc = [0,0]
                 else:
                     acc = self.recall_val2tra(epoch)
                 self.record_acc.append([epoch+1]+acc)
@@ -184,7 +193,7 @@ class learn():
         else:
             self.model.train()  # Fix batch norm of model
             
-        if self.Data in ['CUB','CAR']:
+        if self.Data in ['CUB','CAR','LMK']:
             dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler3(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
         # else: 
         #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
