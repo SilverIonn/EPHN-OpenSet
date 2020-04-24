@@ -6,8 +6,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from tqdm import tqdm
 
-import utils
-from utils import compute_map_and_print, configdataset, ImagesFromList
+from .utils import compute_map_and_print, configdataset, ImagesFromList, l2norm_numpy
 
 
 
@@ -45,7 +44,9 @@ def extract_vectors(model,
             for s in scales:
                 size = int(h * s // DIVIDABLE_BY * DIVIDABLE_BY), \
                        int(w * s // DIVIDABLE_BY * DIVIDABLE_BY)  # round off
+                #print('Size : {}, {}'.format(size[0],size[1]))
                 scaled_x = F.interpolate(x, size=size, mode='bilinear', align_corners=True)
+                #print(scaled_x.size())
                 feat = model(scaled_x)[0]
                 if tta_gem_p != 1.0:
                     feat = feat ** tta_gem_p
@@ -58,7 +59,7 @@ def extract_vectors(model,
     feats = np.concatenate(feats)
     if tta_gem_p != 1.0:
         feats = feats ** (1.0 / tta_gem_p)
-    feats = utils.l2norm_numpy(feats)
+    feats = l2norm_numpy(feats)
 
     return feats
 
@@ -100,7 +101,7 @@ def eval_datasets(model,
         scores = np.dot(db_feats, query_feats.T)
         ranks = np.argsort(-scores, axis=0)
         results[dataset] = compute_map_and_print(
-            dataset, ranks, cfg['gnd'], kappas=[1, 5, 10], logger=logger)
+            dataset, ranks, cfg['gnd'], kappas=[1, 5, 10], logger = logger)
 
     return results
 

@@ -104,6 +104,9 @@ class BalanceSampler3(Sampler):
         #Each batch should contain a) n_class different classes and each class should contain n_img different images 
         #                          b) n_noise background images
         origin_idx = np.vstack(list_sp).reshape((n_img*class_len,-1)).T.reshape((1,-1)).flatten() 
+        length = origin_idx.shape[0]
+        origin_idx = origin_idx[:(length//origin_batchsize*origin_batchsize)]
+        #print(origin_idx.shape)
         temp_idx = origin_idx.reshape(-1,origin_batchsize)   
         background_ext = np.random.choice(interval_list[-1], temp_idx.shape[0]*n_noise).reshape(temp_idx.shape[0],n_noise)
         self.idx = np.concatenate((temp_idx, background_ext), axis=1).reshape((1,-1)).flatten().tolist()

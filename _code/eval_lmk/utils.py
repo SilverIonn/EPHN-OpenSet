@@ -2,7 +2,10 @@ from pathlib import Path
 import logging
 import numpy as np
 import pickle
+import torch.utils.data as data
 from PIL import Image
+import logzero
+import os
 
 def get_logger(log_dir, loglevel=logging.INFO):
     from logzero import logger
@@ -126,12 +129,13 @@ def compute_map(ranks, gnd, kappas=[]):
     return map, aps, pr, prs
 
 
-def compute_map_and_print(dataset, ranks, gnd, kappas=[1, 5, 10]):
+def compute_map_and_print(dataset, ranks, gnd, logger, kappas=[1, 5, 10]):
     
     # old evaluation protocol
     if dataset.startswith('oxford5k') or dataset.startswith('paris6k'):
         map, aps, _, _ = compute_map(ranks, gnd)
-        print('>> {}: mAP {:.2f}'.format(dataset, np.around(map*100, decimals=2)))
+        logger.info('>> {}: mAP {:.2f}'.format(dataset, np.around(map*100, decimals=2)
+)) 
 
     # new evaluation protocol
     elif dataset.startswith('roxford5k') or dataset.startswith('rparis6k'):
@@ -159,14 +163,15 @@ def compute_map_and_print(dataset, ranks, gnd, kappas=[1, 5, 10]):
             g['junk'] = np.concatenate([gnd[i]['junk'], gnd[i]['easy']])
             gnd_t.append(g)
         mapH, apsH, mprH, prsH = compute_map(ranks, gnd_t, kappas)
-
-        print('>> {}: mAP E: {}, M: {}, H: {}'.format(dataset, np.around(mapE*100, decimals=2), np.around(mapM*100, decimals=2), np.around(mapH*100, decimals=2)))
-        print('>> {}: mP@k{} E: {}, M: {}, H: {}'.format(dataset, kappas, np.around(mprE*100, decimals=2), np.around(mprM*100, decimals=2), np.around(mprH*100, decimals=2)))
+        logger.info('>> {}: mAP E: {}, M: {}, H: {}'.format(dataset, np.around(mapE*100, decimals=2), np.around(mapM*100, decimals=2), np.around(mapH*100, decimals=2)
+))
+        logger.info('>> {}: mP@k{} E: {}, M: {}, H: {}'.format(dataset, kappas, np.around(mprE*100, decimals=2), np.around(mprM*100, decimals=2), np.around(mprH*100,
+decimals=2)))
 
 
 def configdataset(dataset, dir_main):
 
-    DATASETS = ['oxford5k', 'paris6k']
+    DATASETS = ['oxford5k', 'paris6k', 'roxford5k', 'rparis6k']
     dataset = dataset.lower()
 
     if dataset not in DATASETS:    
@@ -199,6 +204,19 @@ def config_imname(cfg, i):
 def config_qimname(cfg, i):
     return os.path.join(cfg['dir_images'], cfg['qimlist'][i] + cfg['qext'])
 
+def pil_loader(path):
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
+
+def accimage_loader(path):
+    import accimage
+    try:
+        return accimage.Image(path)
+    except IOError:
+        # Potentially a decoding problem, fall back to PIL.Image
+        return pil_loader(path)
 
 def default_loader(path):
     from torchvision import get_image_backend

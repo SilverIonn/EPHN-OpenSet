@@ -12,8 +12,8 @@ from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
 from .color_lib import RGBmean, RGBstdv
 from .Resnet import resnet18, resnet50
-from eval_lmk.eval_retrieval import eval_datasets
-from eval_lmk.utils import get_logger
+from .eval_lmk.eval_retrieval import eval_datasets
+from .eval_lmk.utils import get_logger
 
 PHASE = ['tra','val']
 
@@ -94,7 +94,7 @@ class learn():
             print('Setting model: resnet18')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
-            self.model.avgpool = nn.AvgPool2d(self.avg)
+            #self.model.avgpool = nn.AvgPool2d(self.avg)
         elif model_name == 'R50':
             self.model = resnet50(pretrained=True)
             print('Setting model: resnet50')
@@ -149,19 +149,20 @@ class learn():
 #             acc = self.recall_val2tra(-1)
         
 #         self.record.append([-1, 0]+acc)
-        if self.Data=='LMK':
-            self.logger = get_logger(log_dir='/SEAS/groups/plessgrp/Landmark_V1/log/')
+        
+        self.logger = get_logger(log_dir='/SEAS/home/jiayin19/EPHN-OpenSet/log/')
 
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
-            print('Epoch {}/{} \n '.format(epoch+1, self.num_epochs) + '-' * 40)
+            self.logger.info('Epoch {}/{} '.format(epoch+1, self.num_epochs) + '-' * 20)
+            
             self.lr_scheduler(epoch+1)
             
             # train 
             tra_loss, dst_norm, bkgd_norm = self.tra()
             
             # calculate the retrieval accuracy
-            if epoch>0 and (epoch+1)%5==0:
+            if (epoch+1)%5==0:
                 if self.Data in ['SOP','CUB','CAR']:
                     acc = self.recall_val2val(epoch)
                 elif self.Data=='ICR':
