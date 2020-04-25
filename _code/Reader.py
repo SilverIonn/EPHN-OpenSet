@@ -1,5 +1,5 @@
 import torch.utils.data as data
-
+from torchvision import transforms
 from PIL import Image
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -125,7 +125,21 @@ class ImageReader(data.Dataset):
         """
         path, target = self.imgs[index]
         img = self.loader(path)
+
+        image_size = img.size
+        imfullsize = max(image_size)
+
+        pad_left = (imfullsize - image_size[1])//2
+        pad_right = imfullsize - pad_left - image_size[1]
+        pad_top = (imfullsize - image_size[0])//2
+        pad_bottom = imfullsize - pad_top - image_size[0]
+
+        padding_size = (pad_left, pad_top, pad_right, pad_bottom)
+
+        pad = transforms.Pad(padding_size, padding_mode= 'reflect')
+        
         if self.transform is not None:
+            img = pad(img)
             img = self.transform(img)
         if self.target_transform is not None:
             target = self.target_transform(target)

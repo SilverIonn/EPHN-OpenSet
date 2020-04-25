@@ -3,6 +3,8 @@ import numpy as np
 import random
 import torch
 
+
+
 class BalanceSampler(Sampler):
     def __init__(self, intervals, GSize=2):
         
@@ -75,8 +77,17 @@ class BalanceSampler3(Sampler):
         origin_batchsize = n_class*n_img
     
         
+        
+        # interval_list = [np.arange(b[0],b[1]) for b in intervals]
+
+        for b in intervals:
+            index_list = np.arange(b[0],b[1])
+            if b[1]-b[0]>=5:
+                interval_list.append(index_list)
+            else:
+                class_len = class_len - 1 
+            
         # find the max interval
-        interval_list = [np.arange(b[0],b[1]) for b in intervals]
         len_max = max([b[1]-b[0] for b in intervals[:-1]])   
         
         if len_max>1000:
