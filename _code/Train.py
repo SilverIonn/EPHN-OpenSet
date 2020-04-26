@@ -45,21 +45,24 @@ class learn():
         
         self.w = 1               ##weight of loss_norm 
         self.gpu_size = 4
-        if not self.setsys(): print('system error'); return
+
+        self.logger = get_logger(log_dir='/SEAS/home/xuanhong/EPHN-OpenSet/log/')
+
+        if not self.setsys(): self.logger.error('system error'); return
         
     def run(self, emb_dim, model_name, num_epochs=20):
         self.out_dim = emb_dim
         self.num_epochs = num_epochs
         self.loadData()
         self.setModel(model_name)
-        print('output dimension: {}'.format(emb_dim))
+        self.logger.info('output dimension: {}'.format(emb_dim))
         self.opt()
 
     ##################################################
     # step 0: System check
     ##################################################
     def setsys(self):
-        if not torch.cuda.is_available(): print('No GPU detected'); return False
+        if not torch.cuda.is_available(): self.logger.error('No GPU detected'); return False
         if not os.path.exists(self.dst): os.makedirs(self.dst)
         return True
     
@@ -81,7 +84,7 @@ class learn():
         self.dsets = ImageReader(self.data_dict['tra'], self.data_dir, self.tra_transforms) 
         self.intervals = self.dsets.intervals
         self.classSize = len(self.intervals)
-        print('number of classes: {}'.format(self.classSize))
+        self.logger.info('number of classes: {}'.format(self.classSize))
 
         return
     
@@ -92,13 +95,13 @@ class learn():
         self.model_name = model_name
         if model_name == 'R18':
             self.model = resnet18(pretrained=True)
-            print('Setting model: resnet18')
+            self.logger.info('Setting model: resnet18')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
             #self.model.avgpool = nn.AvgPool2d(self.avg)
         elif model_name == 'R50':
             self.model = resnet50(pretrained=True)
-            print('Setting model: resnet50')
+            self.logger.info('Setting model: resnet50')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
             self.model.avgpool = nn.AvgPool2d(self.avg)
@@ -107,12 +110,11 @@ class learn():
             self.model.aux_logits=False
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.classSize)
-            print('Setting model: GoogleNet')
+            self.logger.info('Setting model: GoogleNet')
         else:
-            print('model is not exited!')
+            self.logger.error('model is not exited!')
 
-        print('Training on Single-GPU')
-        print('LR is set to {}'.format(self.init_lr))
+        self.logger.info('LR is set to {}'.format(self.init_lr))
         
         self.model = self.model.cuda()
         if self.gpu_size>1:
@@ -127,12 +129,12 @@ class learn():
         if epoch>=0.5*self.num_epochs and not self.decay_time[0]: 
             self.decay_time[0] = True
             lr = self.init_lr*self.decay_rate
-            print('LR is set to {}'.format(lr))
+            self.logger.info('LR is set to {}'.format(lr))
             for param_group in self.optimizer.param_groups: param_group['lr'] = lr
         if epoch>=0.75*self.num_epochs and not self.decay_time[1]: 
             self.decay_time[1] = True
             lr = self.init_lr*self.decay_rate*self.decay_rate
-            print('LR is set to {}'.format(lr))
+            self.logger.info('LR is set to {}'.format(lr))
             for param_group in self.optimizer.param_groups: param_group['lr'] = lr
         return
             
@@ -156,8 +158,7 @@ class learn():
 #             acc = self.recall_val2tra(-1)
         
 #         self.record.append([-1, 0]+acc)
-        
-        self.logger = get_logger(log_dir='/SEAS/home/xuanhong/EPHN-OpenSet/log/')
+    
 
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
@@ -192,7 +193,7 @@ class learn():
         torch.save(torch.Tensor(self.record_acc), self.dst + 'record_acc.pth')
         torch.save(torch.Tensor(self.record_norm), self.dst + 'record_norm.pth')
         time_elapsed = time.time() - since
-        print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed//60, time_elapsed%60))
+        self.logger.info('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed//60, time_elapsed%60))
         return
     
     def tra(self):
@@ -252,7 +253,7 @@ class learn():
             
         acc_tra = recall(Fvec_tra, dsets_tra.idx_to_class)
         acc_val = recall(Fvec_val, dsets_val.idx_to_class)
-        print('R@1_tra:{:.1f}  R@1_val:{:.1f}'.format(acc_tra*100, acc_val*100)) 
+        self.logger.info('R@1_tra:{:.1f}  R@1_val:{:.1f}'.format(acc_tra*100, acc_val*100)) 
         
         return [acc_tra, acc_val]
     
@@ -270,7 +271,7 @@ class learn():
             torch.save(dsets_val, self.dst + 'valdsets.pth')
 
         acc = recall2(Fvec_val, Fvec_tra, dsets_val.idx_to_class, dsets_tra.idx_to_class)
-        print('R@1:{:.2f}'.format(acc)) 
+        self.logger.info('R@1:{:.2f}'.format(acc)) 
         
         return [acc]
     
@@ -288,7 +289,7 @@ class learn():
             torch.save(dsets_val, self.dst + 'valdsets.pth')
             
         acc = recall2(Fvec_val, Fvec_gal, dsets_val.idx_to_class, dsets_gal.idx_to_class)
-        print('R@1:{:.2f}'.format(acc)) 
+        self.logger.info('R@1:{:.2f}'.format(acc)) 
         
         return [acc]
     
