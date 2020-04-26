@@ -10,10 +10,10 @@ def distMC(Mat_A, Mat_B, norm=1, cpu=False, sq=True):#N by F
     DC = Mat_A.mm(torch.t(Mat_B))
     if cpu:
         if sq:
-            DC[torch.eye(N_A).byte()] = -norm
+            DC[torch.eye(N_A).bool()] = -norm
     else:
         if sq:
-            DC[torch.eye(N_A).byte().cuda()] = -norm
+            DC[torch.eye(N_A).bool().cuda()] = -norm
             
     return DC
 
@@ -21,8 +21,7 @@ def Mat(Lvec):
     N = Lvec.size(0)
     Mask = Lvec.repeat(N,1)
     Same = (Mask==Mask.t())
-    I = torch.eye(N).byte().cuda()
-    return (Same-I), (1-Same)#same diff
+    return Same.clone().fill_diagonal_(0), ~Same#same diff
     
 class EPHNLoss(Module):
     def __init__(self,s=0.1):

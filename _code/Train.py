@@ -44,6 +44,7 @@ class learn():
         self.n_noise = 32        ##n_noise background images
         
         self.w = 1               ##weight of loss_norm 
+        self.gpu_size = 4
         if not self.setsys(): print('system error'); return
         
     def run(self, emb_dim, model_name, num_epochs=20):
@@ -112,7 +113,13 @@ class learn():
 
         print('Training on Single-GPU')
         print('LR is set to {}'.format(self.init_lr))
+        
         self.model = self.model.cuda()
+        if self.gpu_size>1:
+            self.model = torch.nn.DataParallel(self.model, device_ids=[i for i in range(self.gpu_size)], output_device=0)
+        else:
+            self.model = self.model.cuda()
+            
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.init_lr)
         return
     
@@ -150,7 +157,7 @@ class learn():
         
 #         self.record.append([-1, 0]+acc)
         
-        self.logger = get_logger(log_dir='/SEAS/home/jiayin19/EPHN-OpenSet/log/')
+        self.logger = get_logger(log_dir='/SEAS/home/xuanhong/EPHN-OpenSet/log/')
 
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
@@ -172,7 +179,7 @@ class learn():
                 elif self.Data=='LMK':
 
                     datasets = ('oxford5k', 'paris6k', 'roxford5k', 'rparis6k')
-                    results = eval_datasets(self.model, datasets=datasets, ms=True, tta_gem_p=1.0, logger=self.logger)
+                    results = eval_datasets(self.model.module, datasets=datasets, ms=True, tta_gem_p=1.0, logger=self.logger)
                     acc = [0,0]
                 else:
                     acc = self.recall_val2tra(epoch)
@@ -181,7 +188,7 @@ class learn():
             self.record_norm.append([epoch+1, dst_norm, bkgd_norm])
 
         # save model
-        torch.save(self.model.cpu().state_dict(), self.dst + 'model_params.pth')
+        torch.save(self.model.module.cpu().state_dict(), self.dst + 'model_params.pth')
         torch.save(torch.Tensor(self.record_acc), self.dst + 'record_acc.pth')
         torch.save(torch.Tensor(self.record_norm), self.dst + 'record_norm.pth')
         time_elapsed = time.time() - since
@@ -190,9 +197,9 @@ class learn():
     
     def tra(self):
         if self.model_name == 'GBN':
-            self.model.eval()  # Fix batch norm of model
+            self.model.module.eval()  # Fix batch norm of model
         else:
-            self.model.train()  # Fix batch norm of model
+            self.model.module.train()  # Set model to training mode
             
         if self.Data in ['CUB','CAR','LMK']:
             dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler3(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)

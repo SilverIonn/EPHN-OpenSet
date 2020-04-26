@@ -32,6 +32,7 @@ x.n_noise = args.n          #number of background images per batch
 x.w = args.w
 x.init_lr = args.lr
 x.imgsize = args.imgsize
+x.gpu_size = 4
 
 if args.method=='EPSHN':
     x.criterion.semi = True

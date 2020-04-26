@@ -1,6 +1,6 @@
 import os, time
 
-from torchvision import transforms, datasets
+from torchvision import transforms
 from torch.utils.data.sampler import SequentialSampler
 import torch.optim as optim
 import torch.nn as nn
@@ -12,6 +12,8 @@ from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
 from .color_lib import RGBmean, RGBstdv
 from .Resnet import resnet18, resnet50
+from .eval_lmk.eval_retrieval import eval_datasets
+from .eval_lmk.utils import get_logger
 
 PHASE = ['tra','val']
 
@@ -42,6 +44,7 @@ class learn():
         self.n_noise = 32        ##n_noise background images
         
         self.w = 1               ##weight of loss_norm 
+        self.gpu_size = 4
         if not self.setsys(): print('system error'); return
         
     def run(self, emb_dim, model_name, num_epochs=20):
@@ -92,7 +95,7 @@ class learn():
             print('Setting model: resnet18')
             num_ftrs = self.model.fc.in_features
             self.model.fc = nn.Linear(num_ftrs, self.out_dim)
-            self.model.avgpool = nn.AvgPool2d(self.avg)
+            #self.model.avgpool = nn.AvgPool2d(self.avg)
         elif model_name == 'R50':
             self.model = resnet50(pretrained=True)
             print('Setting model: resnet50')
@@ -110,7 +113,13 @@ class learn():
 
         print('Training on Single-GPU')
         print('LR is set to {}'.format(self.init_lr))
+        
         self.model = self.model.cuda()
+        if self.gpu_size>1:
+            self.model = torch.nn.DataParallel(self.model, device_ids=[i for i in range(self.gpu_size)], output_device=0)
+        else:
+            self.model = self.model.cuda()
+            
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.init_lr)
         return
     
@@ -147,23 +156,31 @@ class learn():
 #             acc = self.recall_val2tra(-1)
         
 #         self.record.append([-1, 0]+acc)
-    
+        
+        self.logger = get_logger(log_dir='/SEAS/home/xuanhong/EPHN-OpenSet/log/')
+
         for epoch in range(self.num_epochs): 
             # adjust the learning rate
-            print('Epoch {}/{} \n '.format(epoch+1, self.num_epochs) + '-' * 40)
+            self.logger.info('Epoch {}/{} '.format(epoch+1, self.num_epochs) + '-' * 20)
+            
             self.lr_scheduler(epoch+1)
             
             # train 
             tra_loss, dst_norm, bkgd_norm = self.tra()
             
             # calculate the retrieval accuracy
-            if epoch>0 and (epoch+1)%5==0:
+            if (epoch+1)%5==0:
                 if self.Data in ['SOP','CUB','CAR']:
                     acc = self.recall_val2val(epoch)
                 elif self.Data=='ICR':
                     acc = self.recall_val2gal(epoch)
                 elif self.Data=='HOTEL':
                     acc = self.recall_val2tra(epoch)
+                elif self.Data=='LMK':
+
+                    datasets = ('oxford5k', 'paris6k', 'roxford5k', 'rparis6k')
+                    results = eval_datasets(self.model.module, datasets=datasets, ms=True, tta_gem_p=1.0, logger=self.logger)
+                    acc = [0,0]
                 else:
                     acc = self.recall_val2tra(epoch)
                 self.record_acc.append([epoch+1]+acc)
@@ -171,7 +188,7 @@ class learn():
             self.record_norm.append([epoch+1, dst_norm, bkgd_norm])
 
         # save model
-        torch.save(self.model.cpu().state_dict(), self.dst + 'model_params.pth')
+        torch.save(self.model.module.cpu().state_dict(), self.dst + 'model_params.pth')
         torch.save(torch.Tensor(self.record_acc), self.dst + 'record_acc.pth')
         torch.save(torch.Tensor(self.record_norm), self.dst + 'record_norm.pth')
         time_elapsed = time.time() - since
@@ -180,11 +197,11 @@ class learn():
     
     def tra(self):
         if self.model_name == 'GBN':
-            self.model.eval()  # Fix batch norm of model
+            self.model.module.eval()  # Fix batch norm of model
         else:
-            self.model.train()  # Fix batch norm of model
+            self.model.module.train()  # Set model to training mode
             
-        if self.Data in ['CUB','CAR']:
+        if self.Data in ['CUB','CAR','LMK']:
             dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler3(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
         # else: 
         #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
@@ -199,11 +216,17 @@ class learn():
                 if len(labels_bt)<self.n_class*self.n_img+self.n_noise:
                     break
                 fvec,_,_,_,fmap4 = self.model(inputs_bt.cuda())
-                loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
-                loss_norm = fmap4[-self.n_noise:,:,:].mean()
-                data_norm = fmap4[:-self.n_noise,:,:].mean()
-                loss = loss_ephn+self.w*loss_norm
+                if(self.n_noise!=0):    
+                    loss_ephn = self.criterion(fvec[:-self.n_noise,:], labels_bt[:-self.n_noise].cuda())
+                    loss_norm = fmap4[-self.n_noise:,:,:].mean()
+                    data_norm = fmap4[:-self.n_noise,:,:].mean()
+                    loss = loss_ephn+self.w*loss_norm
                 #print(loss_ephn.item(),loss_norm.item())
+                else:
+                    loss_ephn = self.criterion(fvec, labels_bt.cuda())
+                    loss_norm = torch.Tensor([0])
+                    data_norm = fmap4.mean()
+                    loss = loss_ephn
                 loss.backward()
                 self.optimizer.step()  
             
