@@ -17,8 +17,8 @@ parser.add_argument('--w', type=float, help='weight of loss_norm')
 args = parser.parse_args()
 
 
-data_dir = '/SEAS/groups/plessgrp/Landmark_V1/Background'          
-data_dict = torch.load('/SEAS/groups/plessgrp/Landmark_V1/data_dict_LMK.pth')
+data_dir = '/SEAS/groups/plessgrp/Landmark_V2/Background'          
+data_dict = torch.load('/SEAS/groups/plessgrp/Landmark_V2/data_dict_LMK.pth')
 
 
 dst = '_result/{}/{}_{}/G{}/{}_0/'.format(args.method, args.Data, args.model, args.g, args.w)

@@ -3,3 +3,4 @@ _result/
 __pycache__
 .ipynb_checkpoints/
 result/
+log/

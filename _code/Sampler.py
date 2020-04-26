@@ -75,7 +75,7 @@ class BalanceSampler3(Sampler):
         class_len = len(intervals[:-1])    #exclude background
         list_sp = []
         origin_batchsize = n_class*n_img
-    
+        interval_list = [] 
         
         
         # interval_list = [np.arange(b[0],b[1]) for b in intervals]
