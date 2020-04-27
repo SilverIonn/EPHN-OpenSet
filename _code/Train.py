@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch
 
-from .Sampler import BalanceSampler, BalanceSampler2, BalanceSampler3
+from .Sampler import BalanceSampler, BalanceSampler2, BalanceSampler3, BalanceSampler4
 from .Reader import ImageReader
 from .Loss import EPHNLoss
 from .Utils import recall, recall2, recall2_batch, eva
