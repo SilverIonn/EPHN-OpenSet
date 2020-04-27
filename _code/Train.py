@@ -202,8 +202,11 @@ class learn():
         else:
             self.model.module.train()  # Set model to training mode
             
-        if self.Data in ['CUB','CAR','LMK']:
+        if self.Data in ['CUB','CAR']:
             dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler3(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
+        elif self.Data in ['LMK']:
+            dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.n_class*self.n_img+self.n_noise, sampler=BalanceSampler4(self.intervals, n_class=self.n_class, n_img=self.n_img, n_noise=self.n_noise), num_workers=self.num_workers)
+
         # else: 
         #     dataLoader = torch.utils.data.DataLoader(self.dsets, batch_size=self.batch_size, sampler=BalanceSampler2(self.intervals, n_img=self.n_img), num_workers=self.num_workers)
         

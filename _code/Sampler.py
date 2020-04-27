@@ -132,3 +132,40 @@ class BalanceSampler3(Sampler):
     def __len__(self):
         return len(self.idx)
     
+class BalanceSampler4(Sampler):
+    def __init__(self, intervals, n_class= 64, n_img=2, n_noise=100):    
+        
+        class_len = len(intervals[:-1])    #exclude background
+        origin_batchsize = n_class*n_img
+        interval_list = [] 
+        list_sp = []
+
+        for b in intervals[:-1]:
+            index_list = torch.arange(b[0],b[1]).tolist()
+            if b[1]-b[0]>=5:
+                interval_list.append(random.sample(index_list,n_img))
+            else:
+                class_len = class_len - 1 
+        
+        random.shuffle(interval_list)
+
+        for l in interval_list:
+            list_sp += l
+       
+        noise_list = torch.arange(intervals[-1][0],intervals[-1][1]).tolist()
+
+        #Each batch should contain a) n_class different classes and each class should contain n_img different images 
+        #                          b) n_noise background images
+        origin_idx = np.array(list_sp)
+        length = origin_idx.shape[0]
+        origin_idx = origin_idx[:(length//origin_batchsize*origin_batchsize)]
+        temp_idx = origin_idx.reshape(-1,origin_batchsize)   
+        background_ext = np.random.choice(noise_list, temp_idx.shape[0]*n_noise).reshape(temp_idx.shape[0],n_noise)
+        self.idx = np.concatenate((temp_idx, background_ext), axis=1).reshape((1,-1)).flatten().tolist()
+        
+
+    def __iter__(self):
+        return iter(self.idx)
+    
+    def __len__(self):
+        return len(self.idx)
